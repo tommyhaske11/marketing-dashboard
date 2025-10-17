@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, DollarSign, Users, MousePointer, ArrowUpRight, ArrowDownRight, Search, AlertTriangle, Download, TrendingDown, X, ChevronRight } from 'lucide-react';
+import { TrendingUp, DollarSign, Users, MousePointer, ArrowUpRight, ArrowDownRight, Search, AlertTriangle, Download, TrendingDown, X, ChevronRight, MessageCircle, Send, Sparkles } from 'lucide-react';
 
 // Static campaign data
 const campaigns = [
@@ -45,6 +45,14 @@ const MarketingDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [drillDownCampaign, setDrillDownCampaign] = useState(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([
+    {
+      role: 'assistant',
+      content: 'Hi! I\'m your Campaign Performance Assistant. I can help you analyze your campaigns, answer questions about metrics, and provide insights. What would you like to know?'
+    }
+  ]);
+  const [userInput, setUserInput] = useState('');
 
   // Simulate initial data loading
   useEffect(() => {
@@ -183,6 +191,101 @@ const MarketingDashboard = () => {
     });
   };
 
+  // AI Chat Agent - Analyzes campaign data and answers questions
+  const analyzeCampaignData = (question) => {
+    const lowerQ = question.toLowerCase();
+
+    // Calculate key metrics
+    const totalBudget = campaigns.reduce((sum, c) => sum + c.budget, 0);
+    const totalSpent = campaigns.reduce((sum, c) => sum + c.spent, 0);
+    const totalConversions = campaigns.reduce((sum, c) => sum + c.conversions, 0);
+    const avgROI = campaigns.reduce((sum, c) => sum + c.roi, 0) / campaigns.length;
+    const bestCampaign = campaigns.reduce((best, c) => c.roi > best.roi ? c : best);
+    const worstCampaign = campaigns.reduce((worst, c) => c.roi < worst.roi ? c : worst);
+    const overBudgetCampaigns = campaigns.filter(c => (c.spent / c.budget) >= 0.85);
+
+    // Question matching and responses
+    if (lowerQ.includes('best') || lowerQ.includes('top') || lowerQ.includes('highest')) {
+      return `The best performing campaign is **${bestCampaign.name}** with an ROI of ${bestCampaign.roi}% and ${bestCampaign.conversions} conversions. It has a CTR of ${bestCampaign.ctr}% and has spent $${bestCampaign.spent.toLocaleString()} of its $${bestCampaign.budget.toLocaleString()} budget.`;
+    }
+
+    if (lowerQ.includes('worst') || lowerQ.includes('lowest') || lowerQ.includes('underperforming')) {
+      return `The campaign with the lowest ROI is **${worstCampaign.name}** at ${worstCampaign.roi}%. Consider reviewing its targeting, creative, or budget allocation. It has ${worstCampaign.conversions} conversions with a ${worstCampaign.ctr}% CTR.`;
+    }
+
+    if (lowerQ.includes('budget') || lowerQ.includes('spending') || lowerQ.includes('spent')) {
+      const utilizationRate = ((totalSpent / totalBudget) * 100).toFixed(1);
+      let response = `Overall budget utilization is at ${utilizationRate}%. You've spent $${totalSpent.toLocaleString()} out of a total budget of $${totalBudget.toLocaleString()}.`;
+      if (overBudgetCampaigns.length > 0) {
+        response += ` **Alert**: ${overBudgetCampaigns.length} campaign(s) are nearing or over budget: ${overBudgetCampaigns.map(c => c.name).join(', ')}.`;
+      }
+      return response;
+    }
+
+    if (lowerQ.includes('conversion') || lowerQ.includes('converting')) {
+      const avgConversions = (totalConversions / campaigns.length).toFixed(0);
+      return `You have ${totalConversions} total conversions across all campaigns, averaging ${avgConversions} per campaign. **${bestCampaign.name}** leads with ${bestCampaign.conversions} conversions. Your average cost per conversion across the selected date range is $${calculatedMetrics.costPerConversion}.`;
+    }
+
+    if (lowerQ.includes('roi') || lowerQ.includes('return')) {
+      return `Your average ROI across all campaigns is ${avgROI.toFixed(1)}%. **${bestCampaign.name}** has the highest ROI at ${bestCampaign.roi}%, while **${worstCampaign.name}** is at ${worstCampaign.roi}%. This suggests focusing more budget on ${bestCampaign.name} for better returns.`;
+    }
+
+    if (lowerQ.includes('ctr') || lowerQ.includes('click')) {
+      const avgCTR = (campaigns.reduce((sum, c) => sum + c.ctr, 0) / campaigns.length).toFixed(2);
+      const bestCTR = campaigns.reduce((best, c) => c.ctr > best.ctr ? c : best);
+      return `Your average CTR is ${avgCTR}%. **${bestCTR.name}** has the best CTR at ${bestCTR.ctr}%, which is ${(bestCTR.ctr - avgCTR).toFixed(2)}% above average. Consider analyzing its ad creative and targeting for insights to apply to other campaigns.`;
+    }
+
+    if (lowerQ.includes('recommend') || lowerQ.includes('suggest') || lowerQ.includes('advice') || lowerQ.includes('improve')) {
+      let recommendations = `Based on your campaign data, here are my recommendations:\n\n`;
+      recommendations += `1. **Increase budget** for ${bestCampaign.name} (ROI: ${bestCampaign.roi}%) - it's your best performer\n`;
+      recommendations += `2. **Optimize or pause** ${worstCampaign.name} (ROI: ${worstCampaign.roi}%) to reduce wasted spend\n`;
+      if (overBudgetCampaigns.length > 0) {
+        recommendations += `3. **Review budget allocation** - ${overBudgetCampaigns.length} campaign(s) are at 85%+ budget usage\n`;
+      }
+      recommendations += `4. **A/B test** the creative and targeting from ${bestCampaign.name} in underperforming campaigns`;
+      return recommendations;
+    }
+
+    if (lowerQ.includes('summary') || lowerQ.includes('overview') || lowerQ.includes('status')) {
+      return `**Campaign Overview:**\n\n` +
+        `📊 **Total Campaigns**: ${campaigns.length} (${campaigns.filter(c => c.status === 'active').length} active)\n` +
+        `💰 **Total Budget**: $${totalBudget.toLocaleString()}\n` +
+        `📈 **Total Spent**: $${totalSpent.toLocaleString()} (${((totalSpent/totalBudget)*100).toFixed(1)}%)\n` +
+        `🎯 **Total Conversions**: ${totalConversions}\n` +
+        `📊 **Average ROI**: ${avgROI.toFixed(1)}%\n` +
+        `🏆 **Top Performer**: ${bestCampaign.name}\n` +
+        `⚠️ **Needs Attention**: ${worstCampaign.name}`;
+    }
+
+    // Default response with suggestions
+    return `I can help you with:\n\n` +
+      `• **"Which campaign is performing best?"**\n` +
+      `• **"How is my budget utilization?"**\n` +
+      `• **"What's my average ROI?"**\n` +
+      `• **"Show me conversion stats"**\n` +
+      `• **"Give me recommendations"**\n` +
+      `• **"Campaign summary"**\n\n` +
+      `Just ask me anything about your campaign performance!`;
+  };
+
+  // Handle chat message submission
+  const handleSendMessage = () => {
+    if (!userInput.trim()) return;
+
+    const userMessage = { role: 'user', content: userInput };
+    setChatMessages(prev => [...prev, userMessage]);
+
+    // Simulate AI thinking
+    setTimeout(() => {
+      const aiResponse = { role: 'assistant', content: analyzeCampaignData(userInput) };
+      setChatMessages(prev => [...prev, aiResponse]);
+    }, 500);
+
+    setUserInput('');
+  };
+
   const metrics = [
     {
       title: 'Total Revenue',
@@ -260,6 +363,109 @@ const MarketingDashboard = () => {
       </div>
     </div>
   );
+
+  // Chat Agent Component
+  const ChatAgent = () => {
+    if (!isChatOpen) {
+      return (
+        <button
+          onClick={() => setIsChatOpen(true)}
+          className="fixed bottom-6 right-6 z-40 p-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full shadow-2xl hover:shadow-purple-500/50 hover:scale-110 transition-all duration-300 group"
+        >
+          <MessageCircle className="w-6 h-6" />
+          <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-slate-900 animate-pulse"></span>
+        </button>
+      );
+    }
+
+    return (
+      <div className="fixed bottom-6 right-6 z-40 w-96 max-w-[calc(100vw-3rem)] h-[600px] max-h-[calc(100vh-8rem)] bg-slate-900 border border-purple-500/30 rounded-2xl shadow-2xl flex flex-col">
+        {/* Chat Header */}
+        <div className="px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-t-2xl flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-white" />
+            <div>
+              <h3 className="font-semibold text-white">Campaign Assistant</h3>
+              <p className="text-xs text-purple-100">AI-Powered Analytics</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsChatOpen(false)}
+            className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-white" />
+          </button>
+        </div>
+
+        {/* Chat Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {chatMessages.map((message, idx) => (
+            <div
+              key={idx}
+              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                  message.role === 'user'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                    : 'bg-slate-800 text-purple-100 border border-purple-500/20'
+                }`}
+              >
+                <div className="text-sm whitespace-pre-wrap">
+                  {message.content.split('**').map((part, i) =>
+                    i % 2 === 0 ? (
+                      part
+                    ) : (
+                      <strong key={i} className="font-semibold text-white">
+                        {part}
+                      </strong>
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Quick Suggestions */}
+        <div className="px-4 py-2 border-t border-purple-500/20 flex gap-2 overflow-x-auto">
+          {['Best campaign?', 'ROI summary', 'Recommendations'].map((suggestion) => (
+            <button
+              key={suggestion}
+              onClick={() => {
+                setUserInput(suggestion);
+                setTimeout(() => handleSendMessage(), 100);
+              }}
+              className="px-3 py-1 bg-slate-800 text-purple-300 text-xs rounded-full hover:bg-purple-600 hover:text-white transition-colors whitespace-nowrap border border-purple-500/30"
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
+
+        {/* Chat Input */}
+        <div className="p-4 border-t border-purple-500/20">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={userInput}
+              onChange={(e) => setUserInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              placeholder="Ask about your campaigns..."
+              className="flex-1 px-4 py-2 bg-slate-800 border border-purple-500/30 text-purple-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-purple-400/50"
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={!userInput.trim()}
+              className="p-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // Campaign drill-down modal
   const DrillDownModal = ({ campaign }) => {
@@ -367,6 +573,9 @@ const MarketingDashboard = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Drill-down Modal */}
       <DrillDownModal campaign={drillDownCampaign} />
+
+      {/* AI Chat Agent */}
+      <ChatAgent />
 
       {/* Header */}
       <header className="bg-slate-900/50 backdrop-blur-sm border-b border-purple-500/20">
